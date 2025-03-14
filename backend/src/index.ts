@@ -10,10 +10,14 @@ import { basePrompt as reactBasePrompt } from "./defaults/react";
 const app = express();
 app.use(express.json())
 
+function escapeBraces(str: string) {
+    return str.replace(/{/g, '{{').replace(/}/g, '}}');
+}
+
 const mistralModel = new ChatMistralAI({
     model: "mistral-large-latest",
     temperature: 0.1,
-
+    maxTokens: 8000,
 });
 
 app.post("/template", async (req, res) => {
@@ -32,7 +36,9 @@ app.post("/template", async (req, res) => {
 
     if (answer == "react") {
         res.json({
+            // This prompt is for llm so more context
             prompts: [BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${reactBasePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
+            // This one is for frontend so we can make all the files and struture and and everything, thats why passing same thing twice
             uiPrompts: [reactBasePrompt]
         })
         return;
@@ -52,23 +58,26 @@ app.post("/template", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-    const messages = req.body.messages;
+    const basePrompt = escapeBraces(req.body.basePrompt);
+    const filePrompt = escapeBraces(req.body.filePrompt);
+    const userPrompt = escapeBraces(req.body.userPrompt);
+    const systemPrompt = escapeBraces(getSystemPrompt());
 
     const chatPrompt = ChatPromptTemplate.fromMessages([
-        ["system", getSystemPrompt()],
-        ["human", messages],
+        ["system", systemPrompt],
+        ["human", basePrompt],
+        ["human", filePrompt],
+        ["human", userPrompt],
     ]);
 
     const chain = chatPrompt.pipe(mistralModel);
 
     const response = await chain.invoke({});
 
-    console.log(response);
-
     res.json({
         response: (response.content)
     });
-})
+});
 
 app.listen(3000, () => {
     console.log("Server is running on port 3000");

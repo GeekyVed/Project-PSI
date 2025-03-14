@@ -21,9 +21,13 @@ const node_1 = require("./defaults/node");
 const react_1 = require("./defaults/react");
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
+function escapeBraces(str) {
+    return str.replace(/{/g, '{{').replace(/}/g, '}}');
+}
 const mistralModel = new mistralai_1.ChatMistralAI({
     model: "mistral-large-latest",
     temperature: 0.1,
+    maxTokens: 8000,
 });
 app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const userPrompt = req.body.prompt;
@@ -36,7 +40,9 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const answer = response.content;
     if (answer == "react") {
         res.json({
+            // This prompt is for llm so more context
             prompts: [prompt_1.BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${react_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
+            // This one is for frontend so we can make all the files and struture and and everything, thats why passing same thing twice
             uiPrompts: [react_1.basePrompt]
         });
         return;
@@ -52,14 +58,18 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
     return;
 }));
 app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const messages = req.body.messages;
+    const basePrompt = escapeBraces(req.body.basePrompt);
+    const filePrompt = escapeBraces(req.body.filePrompt);
+    const userPrompt = escapeBraces(req.body.userPrompt);
+    const systemPrompt = escapeBraces((0, prompt_1.getSystemPrompt)());
     const chatPrompt = prompts_1.ChatPromptTemplate.fromMessages([
-        ["system", (0, prompt_1.getSystemPrompt)()],
-        ["human", messages],
+        ["system", systemPrompt],
+        ["human", basePrompt],
+        ["human", filePrompt],
+        ["human", userPrompt],
     ]);
     const chain = chatPrompt.pipe(mistralModel);
     const response = yield chain.invoke({});
-    console.log(response);
     res.json({
         response: (response.content)
     });
