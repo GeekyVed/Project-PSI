@@ -1,0 +1,12 @@
+add more framewroks
+fix node base prompt thing 
+fix structure 
+Change bolt - > psi
+
+
+frontend
+fix the npm i isssue
+stream the response.
+
+Overall optimaizaion
+UI enhance
