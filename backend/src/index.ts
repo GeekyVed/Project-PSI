@@ -17,6 +17,10 @@ function escapeBraces(str: string) {
     return str.replace(/{/g, '{{').replace(/}/g, '}}');
 }
 
+app.get("/test", (req, res) => {
+    res.json({ message: "Hello World" });
+});
+
 app.post("/template", async (req, res) => {
     const userPrompt = req.body.prompt;
 
